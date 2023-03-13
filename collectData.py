@@ -23,7 +23,8 @@ def download_book(self,booktitle,data_link):
 
 
 if __name__ == "__main__":
-
-    
+    session = requests.Session()
+    res = session.get("https://www.gutenberg.org/cache/epub/37742/pg37742.txt")
+    print("pause")
 
     pass
