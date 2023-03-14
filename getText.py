@@ -16,12 +16,14 @@ def trim_book(clean_book, trim_pct = 0.1):
         Removes the first and last "trim %" of the book to 
         prevent sampling the table of contents
     """
-    
+
     lines = clean_book.strip().decode('utf-8').splitlines()
     n = len(lines)
     start = n * trim_pct // 1; end = n * (1 - trim_pct) // 1
 
     return lines[int(start):int(end)]
+
+    # TODO: Partition the text into N different non-overlapping chunks of 50 lines each
 
 if __name__ == "__main__":
     clean, raw = fetch_book(2701) # Moby Dick
