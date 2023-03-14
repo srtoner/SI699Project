@@ -5,8 +5,9 @@ __pycache__/
 
 # C extensions
 *.so
+*.rdf
 
-# Distribution / packaging
+# Distribution / packaging    
 .Python
 build/
 develop-eggs/
