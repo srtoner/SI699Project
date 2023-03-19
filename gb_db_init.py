@@ -3,9 +3,6 @@ from gutenbergpy.gutenbergcache import GutenbergCache, GutenbergCacheTypes
 # for sqlite
 GutenbergCache.create()
 
-#for mongodb
-# GutenbergCache.create(type=GutenbergCacheTypes.CACHE_TYPE_MONGODB)
-
 if __name__ == "__main__":
 
     cache  = GutenbergCache.get_cache()
