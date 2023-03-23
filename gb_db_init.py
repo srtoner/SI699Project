@@ -13,6 +13,4 @@ if __name__ == "__main__":
                                                     LEFT JOIN TITLES AS T \
                                                     ON T.bookid=B.id"
                                                    )]
-
-
     print('End Run')

@@ -56,5 +56,5 @@ for author_idx, book_set in enumerate(book_sets):
         ON t.bookid = b.id;".format(str(tuple(sid for sid in sampled_works))))]
     author_works[int(sampled_authors[author_idx])] = book_info
 
-with open("sampled_works.json", 'w') as f:
+with open("sampled_works_filter.json", 'w') as f:
     json.dump(author_works, f)
