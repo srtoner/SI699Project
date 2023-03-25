@@ -1,0 +1,6 @@
+{
+    "REPODIR" : "PUT PATH TO YOUR REPO HERE",
+    "DATADIR" : "data/",
+    "OUTPUT" : "output/"
+    
+}

@@ -3,7 +3,7 @@ from gutenbergpy.gutenbergcache import GutenbergCache, GutenbergCacheTypes
 # for sqlite
 GutenbergCache.create()
 
-if __name__ == "__main__":
+if __name__ == "__main__":  
 
     cache  = GutenbergCache.get_cache()
 
