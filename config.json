@@ -1,6 +1,5 @@
 {
-    "REPODIR" : "PUT PATH TO YOUR REPO HERE",
+    "REPODIR" : "/Users/stephentoner/Desktop/Winter 2023/SI 699/SI699Project",
     "DATADIR" : "data/",
     "OUTPUT" : "output/"
-    
 }

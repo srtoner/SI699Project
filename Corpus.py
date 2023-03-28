@@ -13,6 +13,8 @@ from collections import Counter
 import random
 from torch import optim
 
+import string
+import re
 from scipy import sparse
 
 from torch.utils.tensorboard import SummaryWriter
@@ -29,7 +31,11 @@ from nltk.tokenize import RegexpTokenizer
 # We'll use this to save our models
 from gensim.models import KeyedVectors
 import os
-import pickle
+import pickle as pkl
+
+URL_regex = 'https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&\/\/=]*)'
+twitter_username_re = '(?<=^|(?<=[^a-zA-Z0-9-_\.]))@([A-Za-z]+[A-Za-z0-9-_]+)'
+
 
 random.seed(1234)
 np.random.seed(1234)
@@ -60,7 +66,9 @@ class Corpus:
         '''
         Tokenize the document and returns a list of the tokens
         '''
-        return self.tokenizer.tokenize(text)        
+        
+
+        return text.apply(self.tokenizer.tokenize)        
 
     def load_data(self, file_name, min_token_freq, text = None):
         '''
@@ -75,8 +83,9 @@ class Corpus:
                 text = file.read() # ignore line breaks
 
         print('Counting token frequencies')
-        tokens = self.tokenize(text)
-        _V = Counter([t.lower() for t in tokens])
+        # tokens = self.tokenize(text)
+        tokens = ' '.join([' '.join(t).lower() for t in self.tokenize(text)])
+        _V = Counter(tokens.split())
         
         print("Performing minimum thresholding")
 
@@ -162,7 +171,8 @@ class Corpus:
             with open(stopword_file, 'r') as f:
                 stopwords = f.readlines()
 
-        self.term_freq = list(map(lambda x: {t: x.count(t) for t in x}, corpus.apply(self.tokenize)))
+        self.term_freq = list(map(lambda x: {t: x.count(t) for t in x}, 
+                        [[word.lower() for word in doc] for doc in self.tokenize(corpus)]))
         self.master_dict = {}
         
         for t in self.term_freq:
@@ -222,15 +232,19 @@ if __name__ == "__main__":
 
     corpus = Corpus()
 
-    min_token_freq = 5
+    min_token_freq = 2
 
     filtered_df = pd.read_csv('data_w_subj.csv')
-    # TODO: Choose some approach (string or data frame) and stick with it
-    corpus.load_data("", min_token_freq, filtered_df['text'].to_string())
-    corpus.consolidate_dict(filtered_df['tweet_text'], min_freq = min_token_freq)
+    # TODO: Determine if this is the correct cleaning approach for the application
+    # How important is it that we learn punctuation?
+    filtered_df["text"] = filtered_df["text"].str.replace('[{}]'.format(string.punctuation), ' ')
 
-    # VERY slow -- need to use only when we have effectively reduced length of 
-    # vocabulary?
-    # corpus.DT_sparse_matrix(corpus.term_freq)
+    corpus.load_data("", min_token_freq, filtered_df['text'])
+    # corpus.load_data("", min_token_freq, filtered_df['text'].to_string())
+    corpus.consolidate_dict(filtered_df['text'], min_freq = min_token_freq)
+    corpus.DT_sparse_matrix(corpus.term_freq)
     corpus.coincidence_matrix(corpus.term_freq)
     print("End of Test")
+
+    with open('corpus.pkl', 'wb') as f:
+        pkl.dump(corpus, f)
