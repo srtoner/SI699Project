@@ -25,7 +25,7 @@ def load_file(filename, format, filedir = None):
         with open(filename, 'r') as f:
             file = json.load(f)
     elif format == 'pkl':
-        with open(filename, 'r') as f:
+        with open(filename, 'rb') as f:
             file = pkl.load(f)
     os.chdir(cwd)
     return file

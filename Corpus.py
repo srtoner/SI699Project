@@ -12,10 +12,12 @@ from tqdm.auto import tqdm, trange
 from collections import Counter
 import random
 from torch import optim
+import json
 
 import string
 import re
 from scipy import sparse
+import Utils as U
 
 from torch.utils.tensorboard import SummaryWriter
 
@@ -230,11 +232,15 @@ class Corpus:
     
 if __name__ == "__main__":
 
+    with open('config.json', 'r') as file:
+        config = json.load(file)
+
+        
     corpus = Corpus()
 
     min_token_freq = 2
 
-    filtered_df = pd.read_csv('data_w_subj.csv')
+    filtered_df = U.load_file('data_w_subj.csv', 'csv', config['DATADIR'])
     # TODO: Determine if this is the correct cleaning approach for the application
     # How important is it that we learn punctuation?
     filtered_df["text"] = filtered_df["text"].str.replace('[{}]'.format(string.punctuation), ' ')
