@@ -23,7 +23,7 @@ with open('config.json', 'r') as f:
     config = json.load(f)
 cwd = os.getcwd()
 os.chdir(config['REPODIR'])
-import Utils as U
+import utils.Utils as U
 from Corpus import Corpus
 os.chdir(cwd)
 

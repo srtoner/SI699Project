@@ -17,7 +17,7 @@ import json
 import string
 import re
 from scipy import sparse
-import Utils as U
+import utils.Utils as U
 
 from torch.utils.tensorboard import SummaryWriter
 
