@@ -20,7 +20,7 @@ def load_file(filename, format, filedir = None):
     if filedir:
         os.chdir(filedir)
     if format == 'csv':
-        file = pd.read_csv(filename)
+        file = pd.read_csv(filename, encoding='utf-8')
     elif format == 'json':
         with open(filename, 'r') as f:
             file = json.load(f)
