@@ -2,6 +2,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data.dataloader import default_collate
+from gensim.models import KeyedVectors
 
 import json
 import os
@@ -62,10 +63,28 @@ class Word2Vec(nn.Module):
         sum = torch.sum(product, dim=1)
         sig = torch.sigmoid(sum)
         return sig
+    
+def save(model, corpus, filename):
+    '''
+    Saves the model to the specified filename as a gensim KeyedVectors in the
+    text format so you can load it separately.
+    '''
+
+    # Creates an empty KeyedVectors with our embedding size
+    kv = KeyedVectors(vector_size=model.embedding_size)        
+    vectors = []
+    words = []
+    # Get the list of words/vectors in a consistent order
+    for index in trange(model.target_embeddings.num_embeddings):
+        word = corpus.index_to_word[index]
+        vectors.append(model.target_embeddings(torch.LongTensor([index]).to(device)).cpu().detach().numpy()[0])
+        words.append(word)
+
+    # Fills the KV object with our data in the right order
+    kv.add_vectors(words, vectors) 
+    kv.save_word2vec_format(filename, binary=False)
 
 if __name__ == '__main__':
-
-
 
     random.seed(1234)
     np.random.seed(1234)
@@ -98,13 +117,10 @@ if __name__ == '__main__':
                 **kwargs)
 
     n_epochs = 2
-
-    # + vscode={"languageId": "python"}
     loss_idx = 0
     loss_record = []
     model.train()
 
-    # + vscode={"languageId": "python"}r
     for epoch in tqdm(range(n_epochs)):
         loss_sum = 0
     
@@ -128,3 +144,5 @@ if __name__ == '__main__':
                 loss_idx += 1
 
     model.eval()
+
+    

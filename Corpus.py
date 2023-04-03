@@ -246,6 +246,7 @@ if __name__ == "__main__":
     filtered_df["text"] = filtered_df["text"].str.replace('[{}]'.format(string.punctuation), ' ')
 
     corpus.load_data("", min_token_freq, filtered_df['text'])
+    corpus.generate_negative_sampling_table()
     # corpus.load_data("", min_token_freq, filtered_df['text'].to_string())
     corpus.consolidate_dict(filtered_df['text'], min_freq = min_token_freq)
     corpus.DT_sparse_matrix(corpus.term_freq)
