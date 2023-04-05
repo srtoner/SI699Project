@@ -14,7 +14,7 @@ import Utils as U
 from Corpus import Corpus
 os.chdir(cwd)
 
-suffix = 'start'
+suffix = 'baby'
 save_pickle = True
 
 if not os.path.exists('data/corpus' + suffix + '.pkl'):

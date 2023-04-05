@@ -85,9 +85,10 @@ class Corpus:
                 text = file.read() # ignore line breaks
 
         print('Counting token frequencies')
-        # tokens = self.tokenize(text)
-        tokens = ' '.join([' '.join(t).lower() for t in self.tokenize(text)])
-        _V = Counter(tokens.split())
+        tokens = self.tokenize(text)
+        # tokens = ' '.join([' '.join(t).lower() for t in self.tokenize(text)])
+        # _V = Counter(tokens.split())
+        _V = Counter(tokens)
         
         print("Performing minimum thresholding")
 
@@ -241,8 +242,6 @@ if __name__ == "__main__":
     min_token_freq = 2
 
     filtered_df = U.load_file('data_w_subj.csv', 'csv', config['DATADIR'])
-    # TODO: Determine if this is the correct cleaning approach for the application
-    # How important is it that we learn punctuation?
     filtered_df["text"] = filtered_df["text"].str.replace('[{}]'.format(string.punctuation), ' ')
 
     corpus.load_data("", min_token_freq, filtered_df['text'])
