@@ -28,7 +28,15 @@ np.random.seed(699)
 cache  = GutenbergCache.get_cache()
 
 def fetch_book(id):
-    raw_book = gutenbergpy.textget.get_text_by_id(id)
+    path = '/Users/stephentoner/gutenberg/data/text/' + id+"_text.txt"
+    
+    # I don't believe that the quality of gutenbergpy is very good -- we are getting 
+    # erroneous texts in our corpus and I downloaded the
+    # data using pgcorpus library - Steve
+
+    with open(path, 'rb') as f:
+        raw_book = f.read()
+    # raw_book = gutenbergpy.textget.get_text_by_id(id)
     clean_book = gutenbergpy.textget.strip_headers(raw_book)
     return clean_book, raw_book
 
@@ -65,11 +73,12 @@ if __name__ == "__main__":
     # catalog = catalog[catalog["Language"] == "en"]
     # filtered_ids = str(tuple(catalog['Text#']))
 
-    catalog = U.load_file('seed_works.csv', 'csv', config['DATADIR'])
+    catalog = U.load_file('seed_worksF.csv', 'csv', config['DATADIR'])
     works = tuple(x.replace('PG','') for x in catalog.id)
     catalog['gbid'] = catalog.id.apply(lambda x: int(x.replace('PG', '')))
     filtered_ids = str(works)
 
+    # VVV Legacy VVV
     allAuthors = [s for s in cache.native_query(
     "SELECT a.authorid, a.name, count(b.id) as book_count from \
     (SELECT * from authors \
@@ -87,20 +96,18 @@ if __name__ == "__main__":
     "SELECT id, gutenbergbookid FROM books \
     WHERE gutenbergbookid IN {};".format(filtered_ids))]
 
-
-
     author_to_id = {a[1]:a[0] for a in allAuthors}
     id_to_author = {a[0]:a[1] for a in allAuthors}
 
-    works = U.load_file('seed_works.csv', 'csv', config['DATADIR'])
-    works.id = works.id.apply(lambda X: X[2:])
+    works = U.load_file('seed_worksF.csv', 'csv', config['DATADIR'])
+    # works.id = works.id.apply(lambda X: X[2:])
     works = works.to_dict(orient='records')
     
     gib2bid = {b_map[1]:b_map[0] for b_map in book_ids}
     data = []
 
-    if os.path.exists('data_vTemp.pkl'):
-        with open('data_vTemp.pkl', 'rb') as f:
+    if os.path.exists('data_vTemp2.pkl'):
+        with open('data_vTemp2.pkl', 'rb') as f:
             data = pkl.load(f)
     # data_df = pd.DataFrame(data).drop_duplicates()
     processed_ids = set([d['gutenbergbookid'] for d in data])
@@ -113,10 +120,11 @@ if __name__ == "__main__":
         # book_id = work[0]; book_title = work[1]; gb_id = work[2]
        
         try:
-            book_id = gib2bid[int(work['id'])]; book_title = work['title']; gb_id = int(work['id'])
+            # book_id = gib2bid[int(work['id'])]; book_title = work['title']; gb_id = int(work['id'])
+            book_id = work['id']; book_title = work['title']; gb_id = work['id']
             author_id = author_to_id[work['author']]; author_name = work['author']
         
-   
+
             clean_book, _ = fetch_book(book_id) # Throws an error when not a text
             original_len, trimmed_book = trim_book(clean_book)
             excerpts, excerpt_lines = partition_and_sample(
@@ -144,7 +152,8 @@ if __name__ == "__main__":
     dataset_subjects = Counter()
 
     test = pd.DataFrame(data)
-    out = test.merge(catalog, how='left', left_on='gutenbergbookid', right_on='gbid')
+    test['gb_id'] = test.gutenbergbookid.apply(lambda x: int(x[2:]))
+    out = test.merge(catalog, how='inner', left_on='gb_id', right_on='gbid')
     
 
     # # for d in test:
@@ -153,5 +162,5 @@ if __name__ == "__main__":
     #     d['subjects'] = [dat.strip() for dat in list(itertools.chain.from_iterable([temp.strip().split("--") for temp in d['subjects']]))]
     #     dataset_subjects.update(d['subjects'])
 
-    with open("data_vFinal.pkl", "wb") as outfile:
+    with open("data_vFF.pkl", "wb") as outfile:
         pkl.dump(out.to_dict(orient='records'), outfile)

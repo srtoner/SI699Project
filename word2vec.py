@@ -6,6 +6,7 @@ from gensim.models import KeyedVectors
 
 import json
 import os
+import pickle as pkl
 
 with open('config.json', 'r') as f:
     config = json.load(f)
@@ -89,20 +90,20 @@ if __name__ == '__main__':
     random.seed(1234)
     np.random.seed(1234)
     torch.manual_seed(1234)
-    suffix = 'whew'
+    suffix = 'start'
     save_pickle = True
     torch.set_default_dtype(torch.float32)
 
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    # device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
-    kwargs = {'num_workers': 1, 'pin_memory': True} if device == "cuda:0" else {}
+    # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+    kwargs = {'num_workers': 1, 'pin_memory': True} if device == "cuda:0" or device == 'mps' else {}
 
-    collate_func = default_collate
-    # collate_func = lambda x: tuple(x_.to(device) for x_ in default_collate(x)) if device != "cpu" else default_collate
+    # collate_func = default_collate
+    collate_func = lambda x: tuple(x_.to(device) for x_ in default_collate(x)) if device != "cpu" else default_collate
     print("Running on: " + str(device))
 
-    corpus = U.load_file('corpus.pkl','pkl', config['DATADIR'])
-    training_data = U.load_file('data_v2.pkl','pkl', config['DATADIR'])
+    corpus = U.load_file('corpusstart.pkl','pkl', config['DATADIR'])
+    training_data = U.load_file('training_datastart.pkl','pkl', config['DATADIR'])
     # 
 
     
@@ -145,4 +146,20 @@ if __name__ == '__main__':
 
     model.eval()
 
-    
+    save(model, corpus, 'output_' + suffix)
+
+    corpus_data = {
+    'word2idx' : corpus.word_to_index,
+    'idx2word' : corpus.index_to_word,
+    'word_counts' : corpus.word_counts,
+    'neg_sample' : corpus.negative_sampling_table
+    }
+
+    torch.save(optimizer.state_dict(), 'trained_opt_' + suffix)
+    torch.save(model.state_dict(), 'trained_model_' + suffix)
+
+
+    with open('corpus_data_' + suffix + '.pkl', 'wb') as f:
+        pkl.dump(corpus_data, f)
+
+        

@@ -68,9 +68,9 @@ class Corpus:
         '''
         Tokenize the document and returns a list of the tokens
         '''
-        
+        return self.tokenizer.tokenize(text)
 
-        return text.apply(self.tokenizer.tokenize)        
+        # return text.apply(self.tokenizer.tokenize)        
 
     def load_data(self, file_name, min_token_freq, text = None):
         '''
