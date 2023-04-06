@@ -77,7 +77,8 @@ label_encoder=OneHotEncoder(sparse_output=False)
 # -
 
 y= label_encoder.fit_transform(embed_df['author_id'].to_numpy(dtype='int32').reshape(-1,1))
-X = embed_df['sent_embeddings']
+# X = embed_df['sent_embeddings']
+X = embed_df['vectors'] # Word Embeddings
 
 # +
 test_size = 0.2
@@ -107,7 +108,7 @@ model = SentenceTransformer('all-MiniLM-L6-v2')
 
 class DocumentAttentionClassifier(nn.Module):
     
-    def __init__(self, vocab_size, embedding_size, num_heads, embeddings_fname, n_classes):
+    def __init__(self, vocab_size, embedding_size, num_heads, hidden_dim, embeddings_fname, n_classes):
         '''
         Creates the new classifier model. embeddings_fname is a string containing the
         filename with the saved pytorch parameters (the state dict) for the Embedding
@@ -131,14 +132,18 @@ class DocumentAttentionClassifier(nn.Module):
 
         # self.embeddings = nn.Embedding.from_pretrained(trained_weights, freeze = False)
         # self.embeddings = nn.Embedding()
-        self.linear = nn.Linear(num_heads * embedding_size, n_classes)
-
-        self.attention = torch.rand(self.num_heads, self.embedding_size, requires_grad = True, device=device)
+        self.lstm = nn.LSTM(embedding_size, hidden_dim, bidirectional=True)
         
+        # self.attention = torch.rand(self.num_heads, self.embedding_size, requires_grad = True, device=device)
+        self.attention = torch.rand(self.num_heads, hidden_dim * 2, requires_grad = True, device=device)
+        self.linear = nn.Linear(num_heads * embedding_size, n_classes)
+    
     def forward(self, w):
         w = w.squeeze()
+
+        lstm_out, _ = self.lstm(w.T)
         # w = torch.t(self.embeddings(word_ids).squeeze()) # Embedding_Dim 
-        r = torch.matmul(self.attention, w)
+        r = torch.matmul(self.attention, lstm_out.T)
         a = torch.softmax(r, 1)
         reweighted = a @ w.T
         output = self.linear(reweighted.view(-1))
@@ -156,7 +161,7 @@ datasets['test'] = list(zip(X_test, y_test))
 train_list = datasets['train']
 val_list = datasets['val']
 
-model = DocumentAttentionClassifier(1, 50, 20, 'trained_model_final', n_classes)
+model = DocumentAttentionClassifier(1, 50, 4, 32, 'trained_model_final', n_classes)
 model = model.to(device)
 
 
@@ -192,23 +197,23 @@ def run_eval(model, eval_data, n_classes, kwargs):
 
 # +
 
-loss_period = 500
+loss_period = 5
 # model = model.to(device)
 writer = SummaryWriter()
 loss_function = nn.CrossEntropyLoss()
 
 # VVV GOLD STANDARD VVV
-# optimizer = optim.AdamW(model.parameters(), lr = 5e-4, weight_decay = 0.01)
+optimizer = optim.AdamW(model.parameters(), lr = 5e-3, weight_decay = 0.1)
 # ^^^ GOLD STANDARD ^^^
 
 # optimizer = optim.AdamW(model.parameters(), lr = 5e-3, weight_decay = 0.1)
 
 # optimizer = optim.AdamW(model.parameters())
 # optimizer = optim.RMSprop(model.parameters(), 5e-3)
-optimizer = optim.SGD(model.parameters(), lr = 5e-4)
+# optimizer = optim.SGD(model.parameters(), lr = 5e-4)
 
 train_loader = DataLoader(train_list, batch_size=1, shuffle=True, collate_fn=collate_func, **kwargs)
-n_epochs = 10
+n_epochs = 3
 # n_epochs = 1
 
 # # + vscode={"languageId": "python"}
@@ -255,6 +260,9 @@ for epoch in tqdm(range(n_epochs)):
 
 # once you finish training, it's good practice to switch to eval.
 model.eval()
+
+torch.save(optimizer.state_dict(), 'trained_opt_')
+torch.save(model.state_dict(), 'trained_model_')
 
 y_true, y_pred, f1 = run_eval(model, val_list, n_classes, kwargs)
 print("F1 Score of : "+ str(f1))
