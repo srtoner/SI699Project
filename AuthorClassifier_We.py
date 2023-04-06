@@ -62,17 +62,27 @@ from torch.utils.data.dataloader import default_collate
 torch.set_default_dtype(torch.float32)
 
 
-# +
-with open('embedding_data.pkl', 'rb') as f:
-    embed = pkl.load(f)
+# # +
+# with open('embedding_data.pkl', 'rb') as f:
+#     embed = pkl.load(f)
 
-embed_df = pd.DataFrame(embed)
+# embed_df = pd.DataFrame(embed)
+
+data = U.load_file('data_vFF.pkl', 'pkl', config['DATADIR'])
+
+embed_df = pd.DataFrame(data)
 
 
 n_classes = embed_df.author_id.nunique()
 
 from sklearn.preprocessing import OneHotEncoder
 label_encoder=OneHotEncoder(sparse_output=False)
+
+
+
+
+
+
 
 # -
 
@@ -106,9 +116,14 @@ from sentence_transformers import SentenceTransformer
 model = SentenceTransformer('all-MiniLM-L6-v2')
 
 
+import gensim
+embedding_model = gensim.models.KeyedVectors.load_word2vec_format('word2vec.model')
+
+trained_weights = embedding_model.wv
+
 class DocumentAttentionClassifier(nn.Module):
     
-    def __init__(self, vocab_size, embedding_size, num_heads, hidden_dim, embeddings_fname, n_classes):
+    def __init__(self, vocab_size, embedding_size, num_heads, hidden_dim,trained_weights, n_classes):
         '''
         Creates the new classifier model. embeddings_fname is a string containing the
         filename with the saved pytorch parameters (the state dict) for the Embedding
@@ -129,7 +144,7 @@ class DocumentAttentionClassifier(nn.Module):
         self.fc = nn.Linear(hidden_dim * 2, n_classes)
         # trained_weights = torch.load(embeddings_fname)['target_embeddings.weight']
 
-        # # self.embeddings = nn.Embedding.from_pretrained(trained_weights, freeze = False)
+        self.embeddings = nn.Embedding.from_pretrained(trained_weights, freeze = False)
         # # self.embeddings = nn.Embedding()
 
         # self.lstm = nn.LSTM(embedding_size, hidden_dim, bidirectional=True)
@@ -138,6 +153,7 @@ class DocumentAttentionClassifier(nn.Module):
         # self.linear = nn.Linear(num_heads * embedding_size, n_classes)
     
     def forward(self, w):
+        embedded = self.embeddings(w)
         lstm_output, _ = self.lstm(w.transpose(1,2)) 
         attention_scores = self.attention(lstm_output) 
         attention_weights = F.softmax(attention_scores, dim=1)  
@@ -165,7 +181,7 @@ datasets['test'] = list(zip(X_test, y_test))
 train_list = datasets['train']
 val_list = datasets['val']
 
-model = DocumentAttentionClassifier(1, 50, 4, 32, 'trained_model_final', n_classes)
+model = DocumentAttentionClassifier(1, 50, 4, 32, trained_weights, n_classes)
 model = model.to(device)
 
 
