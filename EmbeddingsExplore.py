@@ -47,24 +47,17 @@ from sklearn.decomposition import PCA
 import nltk
 # -
 
-with open("data_vLocal.pkl", "rb") as infile:
-        data = pkl.load(infile)
+with open ('corpus_text.txt', 'r') as f:
+    corpus_text = f.read()
 
-data_df = pd.DataFrame(data)
-data_df.head()
+length = len(corpus_text)
 
-# gbids to replace:
-# 15 (in german) Moby Dick
-# 27
-# 42
-# 54
-# 57417
+trunc = length * .3 // 1
+corpus_text = corpus_text[:trunc]
 
-filtered = data_df.drop_duplicates(subset = 'gutenbergbookid')
+with open ('corpus_text_new.txt', 'w') as f:
+    f.write(corpus_text)
 
-for i in range(len(filtered)):
-    print(str(filtered.gutenbergbookid.iloc[i]) + " " + " ".join(filtered.text.iloc[i]))
-    
 
 # # +
 # subsample = data_df.sample(10000, random_state=0)
