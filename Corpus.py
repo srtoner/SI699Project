@@ -86,6 +86,7 @@ class Corpus:
 
         print('Counting token frequencies')
         tokens = self.tokenize(text)
+        tokens = [t.lower() for t in tokens]
         # tokens = ' '.join([' '.join(t).lower() for t in self.tokenize(text)])
         # _V = Counter(tokens.split())
         _V = Counter(tokens)
