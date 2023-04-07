@@ -13,15 +13,14 @@
 # ---
 
 # +
-from gutenbergpy.gutenbergcache import GutenbergCache, GutenbergCacheTypes
+
 import os
 import json
 import pandas as pd
 import numpy as np
 import pickle as pkl
 import seaborn as sns
-import gensim
-from gensim.test.utils import common_texts
+
 import torch
 
 import torch.nn as nn
@@ -32,7 +31,7 @@ with open('config.json', 'r') as f:
 cwd = os.getcwd()
 os.chdir(config['REPODIR'])
 import Utils as U
-from Corpus import Corpus
+# from Corpus import Corpus
 os.chdir(cwd)
 
 from collections import Counter, defaultdict
@@ -43,8 +42,6 @@ from tqdm.auto import tqdm, trange
 from collections import Counter
 import random
 from torch import optim
-from gensim.models import KeyedVectors
-from gensim.test.utils import datapath
 
 from torch.utils.tensorboard import SummaryWriter
 
@@ -61,7 +58,7 @@ from torch.utils.data.dataloader import default_collate
 
 torch.set_default_dtype(torch.float32)
 
-
+suffix = "full"
 # +
 with open('sentence_embed.pkl', 'rb') as f:
     embed = pkl.load(f)
@@ -85,11 +82,13 @@ embed_df.head()
 n_classes = embed_df.author_id.nunique()
 
 from sklearn.preprocessing import OneHotEncoder
-label_encoder=OneHotEncoder(sparse_output=False)
+# label_encoder=OneHotEncoder(sparse_output=False)
+label_encoder=OneHotEncoder()
 
 # -
 
 y= label_encoder.fit_transform(embed_df['author_id'].to_numpy(dtype='int32').reshape(-1,1))
+y = y.toarray()
 X = embed_df['sent_embeddings']
 
 # +
@@ -112,12 +111,11 @@ X_train, X_val, y_train, y_val = U.train_test_split(X_train, y_train, test_size=
 type(embed_df.sent_embeddings.iloc[0])
 
 device = 'cpu'
-device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+# device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 kwargs = {'num_workers': 1, 'pin_memory': True} if (device == "cuda:0" or device == 'mps') else {}
 collate_func = lambda x: tuple(x_.to(device) for x_ in default_collate(x)) if device != "cpu" else default_collate
 
-from sentence_transformers import SentenceTransformer
-model = SentenceTransformer('all-MiniLM-L6-v2')
 
 
 class DocumentAttentionClassifier(nn.Module):
@@ -170,6 +168,7 @@ datasets['test'] = list(zip(X_test, y_test))
 
 train_list = datasets['train']
 val_list = datasets['val']
+val_list = datasets['test']
 
 model = DocumentAttentionClassifier(1, 50, 4, 'trained_model_final', n_classes)
 model = model.to(device)
@@ -269,7 +268,12 @@ for epoch in tqdm(range(n_epochs)):
 model.eval()
 
 y_true, y_pred, f1 = run_eval(model, val_list, kwargs)
-print("F1 Score of : "+ str(f1))
+print("Eval F1 Score of : "+ str(f1))
 # -
 
-data[0].squeeze().shape
+
+y_true, y_pred, f1 = run_eval(model, test_list, kwargs)
+print("Test F1 Score of : "+ str(f1))
+
+torch.save(optimizer.state_dict(), 'trained_opt_' + suffix)
+torch.save(model.state_dict(), 'trained_model_' + suffix)

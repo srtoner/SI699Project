@@ -169,7 +169,8 @@ from transformers.integrations import TensorBoardCallback
 from transformers.trainer_callback import EarlyStoppingCallback
 from torch.utils.data import DataLoader
 
-BASE_MODEL = "allenai/longformer-base-4096"
+BASE_MODEL = "microsoft/MiniLM-L12-H384-uncased"
+# BASE_MODEL = "allenai/longformer-base-4096"
 # BASE_MODEL = "lreN5bs16" # Learning Rate 2e-5, batch size 16
 LEARNING_RATE = 2e-5
 MAX_LENGTH = 400
@@ -235,7 +236,7 @@ class CustomTrainer(Trainer):
         outputs = model(**inputs)
         logits = outputs.get("logits")
         # compute custom loss (suppose one has 3 labels with different weights)
-        loss_fct = nn.CrossEntropyLoss(weight=torch.tensor([1.0, 2.0, 3.0]))
+        loss_fct = nn.CrossEntropyLoss()
         loss = loss_fct(logits.view(-1, self.model.config.num_labels), labels.view(-1))
         return (loss, outputs) if return_outputs else loss
     
