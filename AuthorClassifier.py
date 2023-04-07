@@ -63,8 +63,16 @@ torch.set_default_dtype(torch.float32)
 
 
 # +
-with open('embedding_data.pkl', 'rb') as f:
+with open('sentence_embeddings.pkl', 'rb') as f:
     embed = pkl.load(f)
+
+
+
+# TODO: Add in data_vFF, merge on passage_key, sort by order....
+# Need to ensure that data is packaged appropriately
+
+
+
 
 embed_df = pd.DataFrame(embed)
 
@@ -81,8 +89,8 @@ X = embed_df['sent_embeddings']
 # X = embed_df['vectors'] # Word Embeddings
 
 # +
-test_size = 0.2
-val_size = 0.2
+test_size = 0.25
+val_size = 0.25
 random_state =699
 
 X_train, X_test, y_train, y_test = U.train_test_split(X, y, test_size=test_size,
