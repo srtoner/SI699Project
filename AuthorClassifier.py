@@ -71,7 +71,9 @@ with open('sentence_embeddings.pkl', 'rb') as f:
 # TODO: Add in data_vFF, merge on passage_key, sort by order....
 # Need to ensure that data is packaged appropriately
 
+mega_data = U.load_file('data_vFF.pkl', 'pkl', config['DATADIR'])
 
+row_num = [i for i in len(mega_data)]
 
 
 embed_df = pd.DataFrame(embed)
