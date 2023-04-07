@@ -1,3 +1,17 @@
+import os
+import json
+import pandas as pd
+import pickle as pkl
+import itertools 
+
+with open('config.json', 'r') as f:
+    config = json.load(f)
+cwd = os.getcwd()
+os.chdir(config['REPODIR'])
+import Utils as U
+from Corpus import Corpus
+os.chdir(cwd)
+
 import gensim.downloader as api
 from multiprocessing import Pool, cpu_count
 
@@ -13,8 +27,17 @@ def generate_embedding(sentence):
     sentence_embedding = sum(word_embeddings) / len(word_embeddings)
     return sentence_embedding
 
+data = U.load_file('data_vFF.pkl', 'pkl', config['DATADIR'])
+# data = data[:16]
+text_combined = list(itertools.chain.from_iterable([dat['text'] for dat in data]))
+passage_keys = list(itertools.chain.from_iterable([[dat['passage_key']]*len(dat['text']) for dat in data]))
+seq_idx = [i for i in range(len(text_combined))]
+
+zipped = list(zip(seq_idx, passage_keys, text_combined))
+
+
 # Tokenize and preprocess your corpus
-corpus = ["This is the first sentence.", "This is the second sentence.", ...]
+corpus = zipped
 
 # Define the number of processes to use
 num_processes = cpu_count()
@@ -30,6 +53,5 @@ with Pool(num_processes) as pool:
         sentence_embeddings.extend(chunk_embeddings)
 
 # Save sentence embeddings to file
-with open('sentence_embeddings.txt', 'w') as f:
-    for embedding in sentence_embeddings:
-        f.write(' '.join(str(x) for x in embedding) + '\n')
+with open('sentence_embeddings.pkl', 'wb') as f:
+    pkl.dump(sentence_embeddings, f)
