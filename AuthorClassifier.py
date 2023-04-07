@@ -13,7 +13,7 @@
 # ---
 
 # +
-from gutenbergpy.gutenbergcache import GutenbergCache, GutenbergCacheTypes
+
 import os
 import json
 import pandas as pd
@@ -107,13 +107,14 @@ X_train, X_val, y_train, y_val = U.train_test_split(X_train, y_train, test_size=
 
 type(embed_df.sent_embeddings.iloc[0])
 
-device = 'cpu'
+# device = 'cpu'
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 # device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 kwargs = {'num_workers': 1, 'pin_memory': True} if (device == "cuda:0" or device == 'mps') else {}
 collate_func = lambda x: tuple(x_.to(device) for x_ in default_collate(x)) #if device != "cpu" else default_collate
 
-from sentence_transformers import SentenceTransformer
-model = SentenceTransformer('all-MiniLM-L6-v2')
+# from sentence_transformers import SentenceTransformer
+# model = SentenceTransformer('all-MiniLM-L6-v2')
 
 
 class DocumentAttentionClassifier(nn.Module):

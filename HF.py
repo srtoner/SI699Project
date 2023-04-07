@@ -267,3 +267,12 @@ trainer = CustomTrainer(
 ds['train']
 
 trainer.train()
+
+
+trainer.evaluate()
+
+print("Take 5")
+
+# prediction = trainer.predict(ds['validation'])
+
+trainer.save_model('lreN6_bs16_mse')
