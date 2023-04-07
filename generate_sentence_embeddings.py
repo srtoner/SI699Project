@@ -32,7 +32,7 @@ def generate_embedding(sentence):
 if __name__ == '__main__':
     # Load pre-trained GloVe embeddings
    
-    data = U.load_file('data_vFF.pkl', 'pkl', config['DATADIR'])
+    data = U.load_file('data_vFFF.pkl', 'pkl', config['DATADIR'])
     # data = data[:16]
     text_combined = list(itertools.chain.from_iterable([dat['text'] for dat in data]))
     passage_keys = list(itertools.chain.from_iterable([[dat['passage_key']]*len(dat['text']) for dat in data]))
