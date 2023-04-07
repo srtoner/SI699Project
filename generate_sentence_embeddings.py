@@ -32,32 +32,39 @@ def generate_embedding(sentence):
 if __name__ == '__main__':
     # Load pre-trained GloVe embeddings
    
-
-   
     data = U.load_file('data_vFF.pkl', 'pkl', config['DATADIR'])
     # data = data[:16]
     text_combined = list(itertools.chain.from_iterable([dat['text'] for dat in data]))
     passage_keys = list(itertools.chain.from_iterable([[dat['passage_key']]*len(dat['text']) for dat in data]))
     seq_idx = [i for i in range(len(text_combined))]
 
-    zipped = list(zip(seq_idx, passage_keys, text_combined))
+   
 
 
-    # Tokenize and preprocess your corpus
-    corpus = text_combined
-    # Define the number of processes to use
-    num_processes = cpu_count()
+    # # Tokenize and preprocess your corpus
+    # corpus = text_combined
+    # # Define the number of processes to use
+    # num_processes = cpu_count()
 
-    # Split the corpus into chunks
-    chunk_size = len(corpus) // num_processes
-    chunks = [corpus[i:i+chunk_size] for i in range(0, len(corpus), chunk_size)]
+    # # Split the corpus into chunks
+    # chunk_size = len(corpus) // num_processes
+    # chunks = [corpus[i:i+chunk_size] for i in range(0, len(corpus), chunk_size)]
 
-    # Generate sentence embeddings in parallel
-    with Pool(num_processes) as pool:
-        sentence_embeddings = []
-        for chunk_embeddings in pool.imap(generate_embedding, chunks, chunk_size):
-            sentence_embeddings.extend(chunk_embeddings)
+    # # Generate sentence embeddings in parallel
+    # with Pool(num_processes) as pool:
+    #     sentence_embeddings = []
+    #     for chunk_embeddings in pool.map(generate_embedding, chunks, chunk_size):
+    #         sentence_embeddings.extend(chunk_embeddings)
+
+    # print("pause:")
+
+    sentence_embeddings = []
+
+    for text in text_combined:
+        sentence_embeddings.append(generate_embedding(text))
+
+    zipped = list(zip(seq_idx, passage_keys, text_combined, sentence_embeddings))
 
     # Save sentence embeddings to file
     with open('sentence_embeddings.pkl', 'wb') as f:
-        pkl.dump(sentence_embeddings, f)
+        pkl.dump(zipped, f)

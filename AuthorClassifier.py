@@ -73,10 +73,10 @@ with open('sentence_embeddings.pkl', 'rb') as f:
 
 mega_data = U.load_file('data_vFF.pkl', 'pkl', config['DATADIR'])
 
-row_num = [i for i in len(mega_data)]
+row_num = [i for i in range(len(mega_data))]
 
 
-embed_df = pd.DataFrame(embed)
+embed_df = pd.DataFrame(mega_data)
 
 
 n_classes = embed_df.author_id.nunique()
