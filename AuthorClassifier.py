@@ -164,6 +164,7 @@ datasets['test'] = list(zip(X_test, y_test))
 
 train_list = datasets['train']
 val_list = datasets['val']
+test_list = datasets['test']
 
 model = DocumentAttentionClassifier(1, 50, 4, 32, 'trained_model_final', n_classes)
 model = model.to(device)
@@ -207,7 +208,7 @@ writer = SummaryWriter()
 loss_function = nn.CrossEntropyLoss()
 
 # VVV GOLD STANDARD VVV
-optimizer = optim.AdamW(model.parameters(), lr = 5e-5, weight_decay = 0.1)
+optimizer = optim.AdamW(model.parameters(), lr = 5e-3, weight_decay = 0.01)
 # ^^^ GOLD STANDARD ^^^
 
 # optimizer = optim.AdamW(model.parameters(), lr = 5e-3, weight_decay = 0.1)
@@ -217,7 +218,7 @@ optimizer = optim.AdamW(model.parameters(), lr = 5e-5, weight_decay = 0.1)
 # optimizer = optim.SGD(model.parameters(), lr = 5e-4)
 
 train_loader = DataLoader(train_list, batch_size=16, shuffle=True, collate_fn=collate_func, **kwargs)
-n_epochs = 10
+n_epochs = 50
 # n_epochs = 1
 
 # # + vscode={"languageId": "python"}
@@ -269,6 +270,8 @@ torch.save(optimizer.state_dict(), 'trained_opt_')
 torch.save(model.state_dict(), 'trained_model_')
 
 y_true, y_pred, f1 = run_eval(model, val_list, n_classes, kwargs)
-print("F1 Score of : "+ str(f1))
+print("Eval F1 Score of : "+ str(f1))
 # -
 
+y_true_test, y_pred_test, f1_test = run_eval(model, test_list, n_classes, kwargs)
+print("Test F1 Score of : "+ str(f1_test))
