@@ -15,7 +15,7 @@ os.chdir(cwd)
 import gensim.downloader as api
 from multiprocessing import Pool, cpu_count
 
-glove_model = api.load('glove-wiki-gigaword-300')
+glove_model = api.load('glove-wiki-gigaword-100')
 
  # Define the function to generate sentence embeddings
 def generate_embedding(sentence):
@@ -63,7 +63,7 @@ if __name__ == '__main__':
     for text in text_combined:
         sentence_embeddings.append(generate_embedding(text))
 
-    zipped = list(zip(seq_idx, passage_keys, text_combined, sentence_embeddings))
+    zipped = list(zip(seq_idx, passage_keys, sentence_embeddings))
 
     # Save sentence embeddings to file
     with open('sentence_embeddings.pkl', 'wb') as f:

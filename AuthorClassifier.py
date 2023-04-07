@@ -13,7 +13,7 @@
 # ---
 
 # +
-
+from gutenbergpy.gutenbergcache import GutenbergCache, GutenbergCacheTypes
 import os
 import json
 import pandas as pd
@@ -63,21 +63,24 @@ torch.set_default_dtype(torch.float32)
 
 
 # +
-with open('sentence_embeddings.pkl', 'rb') as f:
+with open('sentence_embed.pkl', 'rb') as f:
     embed = pkl.load(f)
 
+embed_df = pd.DataFrame(embed)
+# -
 
+embed_df = embed_df.rename(columns = {0: 'seqid', 1: 'passage_key', 2: 'sent_embeddings'})
 
-# TODO: Add in data_vFF, merge on passage_key, sort by order....
-# Need to ensure that data is packaged appropriately
+data = U.load_file('data_vFFF.pkl', 'pkl', config['DATADIR'])
 
-mega_data = U.load_file('data_vFF.pkl', 'pkl', config['DATADIR'])
+data_df = pd.DataFrame(data)
+data_df.head()
 
-row_num = [i for i in range(len(mega_data))]
+embed_df = embed_df.merge(data_df, how= 'left', left_on= 'passage_key', right_on = 'passage_key')
 
+embed_df.head()
 
-embed_df = pd.DataFrame(mega_data)
-
+# +
 
 n_classes = embed_df.author_id.nunique()
 
@@ -88,11 +91,10 @@ label_encoder=OneHotEncoder(sparse_output=False)
 
 y= label_encoder.fit_transform(embed_df['author_id'].to_numpy(dtype='int32').reshape(-1,1))
 X = embed_df['sent_embeddings']
-# X = embed_df['vectors'] # Word Embeddings
 
 # +
-test_size = 0.25
-val_size = 0.25
+test_size = 0.2
+val_size = 0.2
 random_state =699
 
 X_train, X_test, y_train, y_test = U.train_test_split(X, y, test_size=test_size,
@@ -105,21 +107,22 @@ X_train, X_val, y_train, y_val = U.train_test_split(X_train, y_train, test_size=
                                                     stratify=y_train)
 # -
 
+
+
 type(embed_df.sent_embeddings.iloc[0])
 
-# device = 'cpu'
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-# device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+device = 'cpu'
+device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 kwargs = {'num_workers': 1, 'pin_memory': True} if (device == "cuda:0" or device == 'mps') else {}
-collate_func = lambda x: tuple(x_.to(device) for x_ in default_collate(x)) #if device != "cpu" else default_collate
+collate_func = lambda x: tuple(x_.to(device) for x_ in default_collate(x)) if device != "cpu" else default_collate
 
-# from sentence_transformers import SentenceTransformer
-# model = SentenceTransformer('all-MiniLM-L6-v2')
+from sentence_transformers import SentenceTransformer
+model = SentenceTransformer('all-MiniLM-L6-v2')
 
 
 class DocumentAttentionClassifier(nn.Module):
     
-    def __init__(self, vocab_size, embedding_size, num_heads, hidden_dim, embeddings_fname, n_classes):
+    def __init__(self, vocab_size, embedding_size, num_heads, embeddings_fname, n_classes):
         '''
         Creates the new classifier model. embeddings_fname is a string containing the
         filename with the saved pytorch parameters (the state dict) for the Embedding
@@ -133,38 +136,30 @@ class DocumentAttentionClassifier(nn.Module):
         self.num_heads = num_heads
         self.embeddings_fname = vocab_size        
         
-       
-        # self.embedding = nn.Embedding(vocab_size, embedding_size)
-        self.lstm = nn.LSTM(embedding_size, hidden_dim, batch_first=True, bidirectional=True)
-        self.attention = nn.Linear(hidden_dim * 2, 1)
-        self.fc = nn.Linear(hidden_dim * 2, n_classes)
+        # Create the Embedding object that will hold our word embeddings that we
+        # learned in word2vec. This embedding object should have the same size
+        # as what we learned before. However, we don't to start from scratch! 
+        # Once created, load the saved (word2vec-based) parameters into the object
+        # using load_state_dict.
+
         # trained_weights = torch.load(embeddings_fname)['target_embeddings.weight']
 
-        # # self.embeddings = nn.Embedding.from_pretrained(trained_weights, freeze = False)
-        # # self.embeddings = nn.Embedding()
+        # self.embeddings = nn.Embedding.from_pretrained(trained_weights, freeze = False)
+        # self.embeddings = nn.Embedding()
+        self.linear = nn.Linear(num_heads * embedding_size, n_classes)
 
-        # self.lstm = nn.LSTM(embedding_size, hidden_dim, bidirectional=True)
-        # # self.attention = torch.rand(self.num_heads, self.embedding_size, requires_grad = True, device=device)
-        # self.attention = torch.rand(self.num_heads, hidden_dim * 2, requires_grad = True, device=device)
-        # self.linear = nn.Linear(num_heads * embedding_size, n_classes)
-    
+        self.attention = torch.rand(self.num_heads, self.embedding_size, requires_grad = True, device=device)
+        
     def forward(self, w):
-        lstm_output, _ = self.lstm(w.transpose(1,2)) 
-        attention_scores = self.attention(lstm_output) 
-        attention_weights = F.softmax(attention_scores, dim=1)  
-        context_vector = torch.sum(attention_weights * lstm_output, dim=1)  
-        output = self.fc(context_vector)  # shape: (batch_size, num_classes)
-        # w = w.squeeze()
+        w = w.squeeze()
+        # w = torch.t(self.embeddings(word_ids).squeeze()) # Embedding_Dim 
+        r = torch.matmul(self.attention, w)
+        a = torch.softmax(r, 1)
+        reweighted = a @ w.T
+        output = self.linear(reweighted.view(-1))
 
-        # lstm_out, _ = self.lstm(w.T)
-        # # w = torch.t(self.embeddings(word_ids).squeeze()) # Embedding_Dim 
-        # r = torch.matmul(self.attention, lstm_out.T)
-        # a = torch.softmax(r, 1)
-        # reweighted = a @ w.T
-        # output = self.linear(reweighted.view(-1))
+        return torch.softmax(output, dim=0), a.T
 
-        # return torch.softmax(output, dim=0), a.T
-        return output, attention_weights
 
 # +
 datasets = {}
@@ -175,15 +170,14 @@ datasets['test'] = list(zip(X_test, y_test))
 
 train_list = datasets['train']
 val_list = datasets['val']
-test_list = datasets['test']
 
-model = DocumentAttentionClassifier(1, 50, 4, 32, 'trained_model_final', n_classes)
+model = DocumentAttentionClassifier(1, 50, 4, 'trained_model_final', n_classes)
 model = model.to(device)
 
 
 # -
 
-def run_eval(model, eval_data, n_classes, kwargs):
+def run_eval(model, eval_data, kwargs):
     '''
     Scores the model on the evaluation data and returns the F1
     Eval Data must be in DataLoader-ready format
@@ -192,7 +186,7 @@ def run_eval(model, eval_data, n_classes, kwargs):
     eval_loader = DataLoader(eval_data, batch_size = 1, shuffle = False, collate_fn=collate_func, **kwargs)
 
     threshold = 0.2
-    probs = np.zeros((len(eval_loader), n_classes))
+    probs  = np.zeros(len(eval_loader))
     labels = []
     
     with torch.no_grad():
@@ -203,17 +197,14 @@ def run_eval(model, eval_data, n_classes, kwargs):
             probs[idx] = output.cpu().numpy()
     
     
-    y_pred = np.array([np.argmax(p) for p in probs], dtype = int)
+    y_pred = np.array([1 if p >= threshold else 0 for p in probs], dtype = int)
     labels = np.array(labels)
-
-    y_true = [np.argmax(l) for l in labels]
     
-    
-    return labels, y_pred, f1_score(y_true, y_pred, average='micro')
+    return labels, y_pred, f1_score(labels, y_pred, average='micro')
 
 # +
 
-loss_period = 5
+loss_period = 500
 # model = model.to(device)
 writer = SummaryWriter()
 loss_function = nn.CrossEntropyLoss()
@@ -222,14 +213,14 @@ loss_function = nn.CrossEntropyLoss()
 optimizer = optim.AdamW(model.parameters(), lr = 5e-3, weight_decay = 0.01)
 # ^^^ GOLD STANDARD ^^^
 
-# optimizer = optim.AdamW(model.parameters(), lr = 5e-3, weight_decay = 0.1)
+# optimizer = optim.AdamW(model.parameters(), lr = 5e-3, weight_decay = 0.001)
 
 # optimizer = optim.AdamW(model.parameters())
 # optimizer = optim.RMSprop(model.parameters(), 5e-3)
 # optimizer = optim.SGD(model.parameters(), lr = 5e-4)
 
-train_loader = DataLoader(train_list, batch_size=16, shuffle=True, collate_fn=collate_func, **kwargs)
-n_epochs = 50
+train_loader = DataLoader(train_list, batch_size=1, shuffle=True, collate_fn=collate_func, **kwargs)
+n_epochs = 10
 # n_epochs = 1
 
 # # + vscode={"languageId": "python"}
@@ -248,7 +239,7 @@ for epoch in tqdm(range(n_epochs)):
         model.train()
         model.zero_grad()
         output, weights = model(word_ids)
-        loss = loss_function(output, labels.squeeze().float())
+        loss = loss_function(output, labels.float())
         loss.backward()
         optimizer.step()
 
@@ -260,11 +251,11 @@ for epoch in tqdm(range(n_epochs)):
 
         if not step % loss_period and step:
             writer.add_scalar("Loss", loss_sum, loss_idx)
-            if not step % (loss_period * 10) and step:
-                model.eval()
-                _y, _y2, f1 = run_eval(model, val_list, n_classes, kwargs)
-                writer.add_scalar("F1", f1, loss_idx)
-                model.train()
+            # if not step % (loss_period * 10) and step:
+            #     model.eval()
+            #     _y, _y2, f1 = run_eval(model, dev_list, kwargs)
+            #     writer.add_scalar("F1", f1, loss_idx)
+            #     model.train()
             loss_record.append(loss_sum)
             loss_sum = 0
             loss_idx += 1
@@ -277,12 +268,8 @@ for epoch in tqdm(range(n_epochs)):
 # once you finish training, it's good practice to switch to eval.
 model.eval()
 
-torch.save(optimizer.state_dict(), 'trained_opt_')
-torch.save(model.state_dict(), 'trained_model_')
-
-y_true, y_pred, f1 = run_eval(model, val_list, n_classes, kwargs)
-print("Eval F1 Score of : "+ str(f1))
+y_true, y_pred, f1 = run_eval(model, val_list, kwargs)
+print("F1 Score of : "+ str(f1))
 # -
 
-y_true_test, y_pred_test, f1_test = run_eval(model, test_list, n_classes, kwargs)
-print("Test F1 Score of : "+ str(f1_test))
+data[0].squeeze().shape
