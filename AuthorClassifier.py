@@ -68,7 +68,7 @@ embed_df = pd.DataFrame(embed)
 
 embed_df = embed_df.rename(columns = {0: 'seqid', 1: 'passage_key', 2: 'sent_embeddings'})
 
-data = U.load_file('data_vFFF.pkl', 'pkl', config['DATADIR'])
+data = U.load_file('data_vFFFF.pkl', 'pkl', config['DATADIR'])
 
 data_df = pd.DataFrame(data)
 data_df.head()
@@ -108,13 +108,11 @@ X_train, X_val, y_train, y_val = U.train_test_split(X_train, y_train, test_size=
 
 
 
-type(embed_df.sent_embeddings.iloc[0])
-
 device = 'cpu'
 # device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+# device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 kwargs = {'num_workers': 1, 'pin_memory': True} if (device == "cuda:0" or device == 'mps') else {}
-collate_func = lambda x: tuple(x_.to(device) for x_ in default_collate(x)) if device != "cpu" else default_collate
+collate_func = lambda x: tuple(x_.to(device) for x_ in default_collate(x)) if device != "cpu" else None
 
 
 
@@ -170,7 +168,7 @@ train_list = datasets['train']
 val_list = datasets['val']
 val_list = datasets['test']
 
-model = DocumentAttentionClassifier(1, 50, 4, 'trained_model_final', n_classes)
+model = DocumentAttentionClassifier(1, 100, 4, 'trained_model_final', n_classes)
 model = model.to(device)
 
 
@@ -218,7 +216,7 @@ optimizer = optim.AdamW(model.parameters(), lr = 5e-3, weight_decay = 0.01)
 # optimizer = optim.RMSprop(model.parameters(), 5e-3)
 # optimizer = optim.SGD(model.parameters(), lr = 5e-4)
 
-train_loader = DataLoader(train_list, batch_size=1, shuffle=True, collate_fn=collate_func, **kwargs)
+train_loader = DataLoader(train_list, batch_size=16, shuffle=True, collate_fn=collate_func, **kwargs)
 n_epochs = 10
 # n_epochs = 1
 
