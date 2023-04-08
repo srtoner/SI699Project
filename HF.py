@@ -7,12 +7,12 @@
 #       format_version: '1.5'
 #       jupytext_version: 1.14.5
 #   kernelspec:
-#     display_name: si699proj
+#     display_name: Python 3 (ipykernel)
 #     language: python
 #     name: python3
 # ---
 
-# + endofcell="--"
+# +
 
 import os
 import json
@@ -65,24 +65,25 @@ from torch.utils.data.dataloader import default_collate
 from torch.utils.tensorboard import SummaryWriter
 import torch
 
-device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+# device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 kwargs = {'num_workers': 4, 'pin_memory': True} \
          if (device == "cuda:0" or device == 'mps') else {}
 collate_func = lambda x: tuple(x_.to(device) for x_ in default_collate(x)) \
                if device != "cpu" else default_collate
 
-with open('embedding_data.pkl', 'rb') as f:
-    embed = pkl.load(f)
+# with open('embedding_data.pkl', 'rb') as f:
+#     embed = pkl.load(f)
 
-embed_df = pd.DataFrame(embed)
+# embed_df = pd.DataFrame(embed)
 
 
-n_classes = embed_df.author_id.nunique()
+# n_classes = embed_df.author_id.nunique()
 
-from sklearn.preprocessing import OneHotEncoder
-label_encoder=OneHotEncoder(sparse_output=False)
+# from sklearn.preprocessing import OneHotEncoder
+# label_encoder=OneHotEncoder(sparse_output=False)
 
-# -
+# # -
 
 
 # X = embed_df['vectors'] # Word Embeddings
@@ -94,14 +95,16 @@ random_state =699
 
 
 # # +
-# with open('embedding_data.pkl', 'rb') as f:
-#     embed = pkl.load(f)
+with open('sentence_embed.pkl', 'rb') as f:
+    embed = pkl.load(f)
 
-# embed_df = pd.DataFrame(embed)
+embed_df = pd.DataFrame(embed)
 
-data = U.load_file('data_vFF.pkl', 'pkl', config['DATADIR'])
+data = U.load_file('data_vFFF.pkl', 'pkl', config['DATADIR'])
 
-# --
+# -
+
+embed_df[2][0].shape
 
 # +
 
@@ -110,7 +113,11 @@ embed_df = pd.DataFrame(data)
 embed_df['join_text'] = embed_df['text'].apply(' '.join)
 embed_df = embed_df[['author_id', 'text', 'join_text', 'passage_key']]
 
+# -
 
+
+import torch
+torch.cuda.empty_cache()
 
 # +
 
@@ -161,7 +168,15 @@ ds = {
 
 embed_df.columns
 
-type(embed_df.join_text.iloc[0])
+# +
+train.to_csv('train.csv', index=False)
+val.to_csv('val.csv', index=False)
+test.to_csv('test.csv', index=False)
+
+train
+# -
+
+ds1
 
 # +
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, DataCollatorWithPadding
@@ -169,13 +184,16 @@ from transformers.integrations import TensorBoardCallback
 from transformers.trainer_callback import EarlyStoppingCallback
 from torch.utils.data import DataLoader
 
+
+ds1 = {}
+
 BASE_MODEL = "microsoft/MiniLM-L12-H384-uncased"
 # BASE_MODEL = "allenai/longformer-base-4096"
 # BASE_MODEL = "lreN5bs16" # Learning Rate 2e-5, batch size 16
 LEARNING_RATE = 2e-5
-MAX_LENGTH = 400
+MAX_LENGTH = 256
 BATCH_SIZE = 16
-EPOCHS = 3
+EPOCHS = .1
 
 tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL)
 model = AutoModelForSequenceClassification.from_pretrained(BASE_MODEL, 
@@ -185,7 +203,7 @@ model = AutoModelForSequenceClassification.from_pretrained(BASE_MODEL,
 def preprocess_function(examples, test = False):
     # if not test:
     label = examples["label"] 
-    examples = tokenizer(examples["text"],
+    examples = tokenizer(examples["join_text"],
                         truncation=True, 
                         padding="max_length",
                         max_length=MAX_LENGTH,
@@ -193,16 +211,17 @@ def preprocess_function(examples, test = False):
     
     for key in examples:
         examples[key] = examples[key].squeeze(0)
+  
     # if not test:
-    examples["label"] = torch.FloatTensor([label])
+    examples["label"] = torch.IntTensor([label])
     examples = examples.to(device)
     return examples
 
 for split in ds:
-    ds[split] = ds[split].map(preprocess_function, 
+    ds1[split] = ds[split].map(preprocess_function, 
                                 remove_columns=['author_id', 'text', 'passage_key','join_text', 'label'])
 
-    ds[split].set_format('pt')
+    ds1[split].set_format('pt')
 
 
 # +
@@ -232,12 +251,11 @@ from transformers import Trainer
 class CustomTrainer(Trainer):
     def compute_loss(self, model, inputs, return_outputs=False):
         labels = inputs.get("labels")
-        # forward pass
         outputs = model(**inputs)
         logits = outputs.get("logits")
-        # compute custom loss (suppose one has 3 labels with different weights)
-        loss_fct = nn.CrossEntropyLoss()
-        loss = loss_fct(logits.view(-1, self.model.config.num_labels), labels.view(-1))
+
+        loss_fct = nn.functional.cross_entropy
+        loss = loss_fct(logits.view(-1, n_classes), labels.view(-1), average = 'weighted')
         return (loss, outputs) if return_outputs else loss
     
 
@@ -248,7 +266,12 @@ from sklearn.metrics import f1_score
 def compute_metrics_for_classification(eval_pred):
     predictions, labels = eval_pred
     labels = labels.reshape(-1, 1)
-    f1 = f1_score(labels, predictions, squared=True)
+    print(labels)
+    print(type(predictions))
+    
+    predicted_class = predictions.argmax(axis=1)
+    print(predicted_class)
+    f1 = f1_score(labels, predicted_class)
     print(f"F1: {f1}")
     
     return {"F1": f1}
@@ -259,21 +282,18 @@ def compute_metrics_for_classification(eval_pred):
 trainer = CustomTrainer(
     model=model,
     args=training_args,
-    train_dataset=ds["train"],
-    eval_dataset=ds["val"],
+    train_dataset=ds1["train"],
+    eval_dataset=ds1["val"],
     compute_metrics=compute_metrics_for_classification,
-    callbacks=[tb, early_stop]
 )
-
-ds['train']
 
 trainer.train()
 
 
 trainer.evaluate()
 
-print("Take 5")
+n_classes
 
 # prediction = trainer.predict(ds['validation'])
 
-trainer.save_model('lreN6_bs16_mse')
+trainer.save_model('hf_model')
