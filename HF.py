@@ -100,7 +100,7 @@ with open('sentence_embed.pkl', 'rb') as f:
 
 embed_df = pd.DataFrame(embed)
 
-data = U.load_file('data_vFFF.pkl', 'pkl', config['DATADIR'])
+data = U.load_file('data_vFFFF.pkl', 'pkl', config['DATADIR'])
 
 # -
 
@@ -176,7 +176,6 @@ test.to_csv('test.csv', index=False)
 train
 # -
 
-ds1
 
 # +
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, DataCollatorWithPadding
@@ -214,7 +213,7 @@ def preprocess_function(examples, test = False):
   
     # if not test:
     examples["label"] = torch.IntTensor([label])
-    examples = examples.to(device)
+    examples = examples.to(device)  
     return examples
 
 for split in ds:
@@ -261,7 +260,7 @@ class CustomTrainer(Trainer):
 
 
 # +
-from sklearn.metrics import f1_score
+from sklearn.metrics import f1_score as f1s
 
 def compute_metrics_for_classification(eval_pred):
     predictions, labels = eval_pred
@@ -271,7 +270,7 @@ def compute_metrics_for_classification(eval_pred):
     
     predicted_class = predictions.argmax(axis=1)
     print(predicted_class)
-    f1 = f1_score(labels, predicted_class)
+    f1 = f1s(labels, predicted_class)
     print(f"F1: {f1}")
     
     return {"F1": f1}
