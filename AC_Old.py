@@ -63,7 +63,7 @@ torch.set_default_dtype(torch.float32)
 
 
 # +
-with open('embedding_data.pkl', 'rb') as f:
+with open('embedding_data_final.pkl', 'rb') as f:
     embed = pkl.load(f)
 
 # mega_data = U.load_file('data_vFF.pkl', 'pkl', config['DATADIR'])

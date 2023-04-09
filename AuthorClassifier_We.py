@@ -58,7 +58,7 @@ from torch.utils.data.dataloader import default_collate
 
 torch.set_default_dtype(torch.float64)
 
-suffix = "tiny"
+suffix = "small"
 # +
 with open('embedding_data_final.pkl', 'rb') as f:
     embed = pkl.load(f)
@@ -148,7 +148,7 @@ def pad_with(vector, pad_width, iaxis, kwargs):
 
 
 # +
-MAX_LENGTH = 512
+MAX_LENGTH = 128
 
 X_trunc = []
 
@@ -295,7 +295,7 @@ optimizer = optim.AdamW(model.parameters(), lr = 5e-3, weight_decay = 0.01)
 # optimizer = optim.SGD(model.parameters(), lr = 5e-4)
 
 train_loader = DataLoader(train_list, batch_size=256, shuffle=True, collate_fn=collate_func, **kwargs)
-n_epochs = 15
+n_epochs = 10
 
 # # + vscode={"languageId": "python"}
 loss_idx = 0
@@ -333,6 +333,8 @@ for epoch in tqdm(range(n_epochs)):
         
 # once you finish training, it's good practice to switch to eval.
 model.eval()
+
+print(n_classes)
 
 y_true, y_pred, f1 = run_eval(model, val_list, n_classes, kwargs)
 print("Eval F1 Score of : "+ str(f1))

@@ -13,6 +13,7 @@
 # ---
 
 # +
+
 import os
 import json
 import pandas as pd
@@ -58,24 +59,25 @@ import nltk
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data.dataloader import default_collate
 
-torch.set_default_dtype(torch.float)
+torch.set_default_dtype(torch.float32)
 
-suffix = "small"
 
 # +
-with open('embedding_data_final.pkl', 'rb') as f:
+with open('sentence_embed_mid.pkl', 'rb') as f:
+    embed = pkl.load(f)
+
+with open('sentence_embed.pkl', 'rb') as f:
     embed = pkl.load(f)
 
 embed_df = pd.DataFrame(embed)
 
-# embed_df = embed_df.rename(columns = {0: 'seqid', 1: 'passage_key', 2: 'sent_embeddings'})
+data = U.load_file('data_vFFFF.pkl', 'pkl', config['DATADIR'])
 
-data = U.load_file(f'data_vF_{suffix}.pkl', 'pkl', config['DATADIR'])
-data_df = pd.DataFrame(data)
-data_df.head()
 
-embed_df = embed_df.merge(data_df, how= 'left', left_on= 'passage_key', right_on = 'passage_key')
-embed_df = embed_df.dropna(subset=['author_id', 'sent_embedding'])
+# mega_data = U.load_file('data_vFF.pkl', 'pkl', config['DATADIR'])
+
+# row_num = [i for i in range(len(mega_data))]
+embed_df = pd.DataFrame(embed)
 
 
 n_classes = embed_df.author_id.nunique()
@@ -86,24 +88,8 @@ label_encoder=OneHotEncoder(sparse_output=False)
 # -
 
 y= label_encoder.fit_transform(embed_df['author_id'].to_numpy(dtype='int32').reshape(-1,1))
-# +
-
-n_classes = embed_df.author_id.nunique()
-print(n_classes)
-from sklearn.preprocessing import OneHotEncoder
-# label_encoder=OneHotEncoder(sparse_output=False)
-label_encoder=OneHotEncoder()
-
-# -
-
-y= label_encoder.fit_transform(embed_df['author_id'].to_numpy(dtype='int32').reshape(-1,1))
-
-embed_df['sent_embedding'] = embed_df['sent_embedding'].apply(np.vstack)
-X = embed_df['sent_embedding'].apply(np.double)
-
-
-
-y = y.toarray()
+X = embed_df['sent_embeddings']
+# X = embed_df['vectors'] # Word Embeddings
 
 # +
 test_size = 0.2
@@ -120,16 +106,16 @@ X_train, X_val, y_train, y_val = U.train_test_split(X_train, y_train, test_size=
                                                     stratify=y_train)
 # -
 
+type(embed_df.sent_embeddings.iloc[0])
 
-
-
-
-device = 'cpu'
+# device = 'cpu'
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 # device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 kwargs = {'num_workers': 1, 'pin_memory': True} if (device == "cuda:0" or device == 'mps') else {}
-collate_func = lambda x: tuple(x_.to(device) for x_ in default_collate(x)) if device != "cpu" else default_collate
+collate_func = lambda x: tuple(x_.to(device) for x_ in default_collate(x)) #if device != "cpu" else default_collate
 
+# from sentence_transformers import SentenceTransformer
+# model = SentenceTransformer('all-MiniLM-L6-v2')
 
 
 class DocumentAttentionClassifier(nn.Module):
@@ -234,7 +220,7 @@ writer = SummaryWriter()
 loss_function = nn.CrossEntropyLoss()
 
 # VVV GOLD STANDARD VVV
-optimizer = optim.AdamW(model.parameters(), lr = 5e-2, weight_decay = 0.01)
+optimizer = optim.AdamW(model.parameters(), lr = 5e-4, weight_decay = 0.01)
 # ^^^ GOLD STANDARD ^^^
 
 # optimizer = optim.AdamW(model.parameters(), lr = 5e-3, weight_decay = 0.1)
@@ -244,7 +230,7 @@ optimizer = optim.AdamW(model.parameters(), lr = 5e-2, weight_decay = 0.01)
 # optimizer = optim.SGD(model.parameters(), lr = 5e-4)
 
 train_loader = DataLoader(train_list, batch_size=16, shuffle=True, collate_fn=collate_func, **kwargs)
-n_epochs = 10
+n_epochs = 50
 # n_epochs = 1
 
 # # + vscode={"languageId": "python"}
@@ -292,14 +278,14 @@ for epoch in tqdm(range(n_epochs)):
 # once you finish training, it's good practice to switch to eval.
 model.eval()
 
-y_true, y_pred, f1 = run_eval(model, val_list, n_classes, kwargs)
-print("F1 Score of : "+ str(f1))
+print(n_classes)
 
-y_true, y_pred, f1 = run_eval(model, test_list, n_classes, kwargs)
-print("F1 Score of : "+ str(f1))
+torch.save(optimizer.state_dict(), 'trained_opt_')
+torch.save(model.state_dict(), 'trained_model_')
+
+y_true, y_pred, f1 = run_eval(model, val_list, n_classes, kwargs)
+print("Eval F1 Score of : "+ str(f1))
 # -
 
-
-
-torch.save(optimizer.state_dict(), 'trained_opt_sent_author_' + suffix)
-torch.save(model.state_dict(), 'trained_model_sent_author_' + suffix)
+y_true_test, y_pred_test, f1_test = run_eval(model, test_list, n_classes, kwargs)
+print("Test F1 Score of : "+ str(f1_test))
