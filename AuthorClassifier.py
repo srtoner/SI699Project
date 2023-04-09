@@ -13,14 +13,15 @@
 # ---
 
 # +
-
+from gutenbergpy.gutenbergcache import GutenbergCache, GutenbergCacheTypes
 import os
 import json
 import pandas as pd
 import numpy as np
 import pickle as pkl
 import seaborn as sns
-
+import gensim
+from gensim.test.utils import common_texts
 import torch
 
 import torch.nn as nn
@@ -31,7 +32,7 @@ with open('config.json', 'r') as f:
 cwd = os.getcwd()
 os.chdir(config['REPODIR'])
 import Utils as U
-# from Corpus import Corpus
+from Corpus import Corpus
 os.chdir(cwd)
 
 from collections import Counter, defaultdict
@@ -42,6 +43,8 @@ from tqdm.auto import tqdm, trange
 from collections import Counter
 import random
 from torch import optim
+from gensim.models import KeyedVectors
+from gensim.test.utils import datapath
 
 from torch.utils.tensorboard import SummaryWriter
 
@@ -58,7 +61,7 @@ from torch.utils.data.dataloader import default_collate
 
 torch.set_default_dtype(torch.float32)
 
-suffix = "full"
+
 # +
 with open('sentence_embed.pkl', 'rb') as f:
     embed = pkl.load(f)
@@ -68,14 +71,14 @@ embed_df = pd.DataFrame(embed)
 
 embed_df = embed_df.rename(columns = {0: 'seqid', 1: 'passage_key', 2: 'sent_embeddings'})
 
-data = U.load_file('data_vFFFF.pkl', 'pkl', config['DATADIR'])
+data = U.load_file('data_vFFF.pkl', 'pkl', config['DATADIR'])
 
 data_df = pd.DataFrame(data)
 data_df.head()
 
 embed_df = embed_df.merge(data_df, how= 'left', left_on= 'passage_key', right_on = 'passage_key')
 
-embed_df.head()
+any(embed_df.author_id.isnull())
 
 # +
 
@@ -88,8 +91,9 @@ label_encoder=OneHotEncoder()
 # -
 
 y= label_encoder.fit_transform(embed_df['author_id'].to_numpy(dtype='int32').reshape(-1,1))
-y = y.toarray()
 X = embed_df['sent_embeddings']
+
+y = y.toarray()
 
 # +
 test_size = 0.2
@@ -108,17 +112,20 @@ X_train, X_val, y_train, y_val = U.train_test_split(X_train, y_train, test_size=
 
 
 
+type(embed_df.sent_embeddings.iloc[0])
+
 device = 'cpu'
 # device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
-# device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 kwargs = {'num_workers': 1, 'pin_memory': True} if (device == "cuda:0" or device == 'mps') else {}
-collate_func = lambda x: tuple(x_.to(device) for x_ in default_collate(x)) if device != "cpu" else None
+collate_func = lambda x: tuple(x_.to(device) for x_ in default_collate(x)) if device != "cpu" else default_collate
 
+from sentence_transformers import SentenceTransformer
+model = SentenceTransformer('all-MiniLM-L6-v2')
 
 
 class DocumentAttentionClassifier(nn.Module):
     
-    def __init__(self, vocab_size, embedding_size, num_heads, embeddings_fname, n_classes):
+    def __init__(self, vocab_size, embedding_size, num_heads, hidden_dim, embeddings_fname, n_classes):
         '''
         Creates the new classifier model. embeddings_fname is a string containing the
         filename with the saved pytorch parameters (the state dict) for the Embedding
@@ -166,9 +173,9 @@ datasets['test'] = list(zip(X_test, y_test))
 
 train_list = datasets['train']
 val_list = datasets['val']
-val_list = datasets['test']
+test_list = datasets['test']
 
-model = DocumentAttentionClassifier(1, 100, 4, 'trained_model_final', n_classes)
+model = DocumentAttentionClassifier(1, 50, 4, 'trained_model_final', n_classes)
 model = model.to(device)
 
 
@@ -216,7 +223,7 @@ optimizer = optim.AdamW(model.parameters(), lr = 5e-3, weight_decay = 0.01)
 # optimizer = optim.RMSprop(model.parameters(), 5e-3)
 # optimizer = optim.SGD(model.parameters(), lr = 5e-4)
 
-train_loader = DataLoader(train_list, batch_size=16, shuffle=True, collate_fn=collate_func, **kwargs)
+train_loader = DataLoader(train_list, batch_size=1, shuffle=True, collate_fn=collate_func, **kwargs)
 n_epochs = 10
 # n_epochs = 1
 
@@ -266,12 +273,10 @@ for epoch in tqdm(range(n_epochs)):
 model.eval()
 
 y_true, y_pred, f1 = run_eval(model, val_list, kwargs)
-print("Eval F1 Score of : "+ str(f1))
-# -
-
+print("F1 Score of : "+ str(f1))
 
 y_true, y_pred, f1 = run_eval(model, test_list, kwargs)
-print("Test F1 Score of : "+ str(f1))
+print("F1 Score of : "+ str(f1))
+# -
 
-torch.save(optimizer.state_dict(), 'trained_opt_' + suffix)
-torch.save(model.state_dict(), 'trained_model_' + suffix)
+data[0].squeeze().shape
