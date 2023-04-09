@@ -58,7 +58,7 @@ from torch.utils.data.dataloader import default_collate
 
 torch.set_default_dtype(torch.float64)
 
-suffix = "full"
+suffix = "tiny"
 # +
 with open('embedding_data_final.pkl', 'rb') as f:
     embed = pkl.load(f)
@@ -69,7 +69,7 @@ embed_df = pd.DataFrame(embed)
 embed_df = embed_df.rename(columns = {0: 'seqid', 1: 'passage_key', 2: 'sent_embeddings'})
 
 
-data = U.load_file('data_vFFFF.pkl', 'pkl', config['DATADIR'])
+data = U.load_file(f'data_vF_{suffix}.pkl', 'pkl', config['DATADIR'])
 
 # +
 import gensim

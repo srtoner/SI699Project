@@ -60,6 +60,7 @@ from torch.utils.data.dataloader import default_collate
 
 torch.set_default_dtype(torch.float32)
 
+suffix = "tiny"
 
 # +
 with open('sentence_embed.pkl', 'rb') as f:
@@ -70,7 +71,7 @@ embed_df = pd.DataFrame(embed)
 
 embed_df = embed_df.rename(columns = {0: 'seqid', 1: 'passage_key', 2: 'sent_embeddings'})
 
-data = U.load_file('data_vFFFF.pkl', 'pkl', config['DATADIR'])
+data = U.load_file(f'data_vF_{suffix}.pkl', 'pkl', config['DATADIR'])
 
 data_df = pd.DataFrame(data)
 data_df.head()
@@ -265,3 +266,6 @@ print("F1 Score of : "+ str(f1))
 # -
 
 data[0].squeeze().shape
+
+torch.save(optimizer.state_dict(), 'trained_opt_sent_author_' + suffix)
+torch.save(model.state_dict(), 'trained_model_sent_author_' + suffix)
