@@ -192,7 +192,7 @@ BASE_MODEL = "microsoft/MiniLM-L12-H384-uncased"
 LEARNING_RATE = 2e-5
 MAX_LENGTH = 256
 BATCH_SIZE = 16
-EPOCHS = .1
+EPOCHS = 15
 
 tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL)
 model = AutoModelForSequenceClassification.from_pretrained(BASE_MODEL, 
@@ -213,7 +213,7 @@ def preprocess_function(examples, test = False):
   
     # if not test:
     examples["label"] = torch.IntTensor([label])
-    examples = examples.to(device)
+    examples = examples.to(device)  
     return examples
 
 for split in ds:
@@ -255,7 +255,7 @@ class CustomTrainer(Trainer):
 
         # nn.CrossEntropyLoss(weight=torch.tensor([1.0, 2.0, 3.0]))
         loss_fct = nn.functional.cross_entropy
-        loss = loss_fct(logits.view(-1, n_classes), labels.view(-1), average = 'weighted')
+        loss = loss_fct(logits.view(-1, n_classes), labels.view(-1))
         return (loss, outputs) if return_outputs else loss
     
 
@@ -271,7 +271,7 @@ def compute_metrics_for_classification(eval_pred):
     
     predicted_class = predictions.argmax(axis=1)
     print(predicted_class)
-    f1 = f1s(labels, predicted_class)
+    f1 = f1s(labels, predicted_class, average = 'weighted')
     print(f"F1: {f1}")
     
     return {"F1": f1}
