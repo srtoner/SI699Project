@@ -13,7 +13,6 @@
 # ---
 
 # +
-from gutenbergpy.gutenbergcache import GutenbergCache, GutenbergCacheTypes
 import os
 import json
 import pandas as pd
@@ -71,7 +70,7 @@ embed_df = pd.DataFrame(embed)
 
 embed_df = embed_df.rename(columns = {0: 'seqid', 1: 'passage_key', 2: 'sent_embeddings'})
 
-data = U.load_file('data_vFFF.pkl', 'pkl', config['DATADIR'])
+data = U.load_file('data_vFFFF.pkl', 'pkl', config['DATADIR'])
 
 data_df = pd.DataFrame(data)
 data_df.head()
@@ -115,12 +114,10 @@ X_train, X_val, y_train, y_val = U.train_test_split(X_train, y_train, test_size=
 type(embed_df.sent_embeddings.iloc[0])
 
 device = 'cpu'
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 # device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 kwargs = {'num_workers': 1, 'pin_memory': True} if (device == "cuda:0" or device == 'mps') else {}
 collate_func = lambda x: tuple(x_.to(device) for x_ in default_collate(x)) if device != "cpu" else default_collate
-
-from sentence_transformers import SentenceTransformer
-model = SentenceTransformer('all-MiniLM-L6-v2')
 
 
 class DocumentAttentionClassifier(nn.Module):
@@ -138,24 +135,12 @@ class DocumentAttentionClassifier(nn.Module):
         self.embedding_size = embedding_size
         self.num_heads = num_heads
         self.embeddings_fname = vocab_size        
-        
-        # Create the Embedding object that will hold our word embeddings that we
-        # learned in word2vec. This embedding object should have the same size
-        # as what we learned before. However, we don't to start from scratch! 
-        # Once created, load the saved (word2vec-based) parameters into the object
-        # using load_state_dict.
-
-        # trained_weights = torch.load(embeddings_fname)['target_embeddings.weight']
-
-        # self.embeddings = nn.Embedding.from_pretrained(trained_weights, freeze = False)
-        # self.embeddings = nn.Embedding()
         self.linear = nn.Linear(num_heads * embedding_size, n_classes)
-
         self.attention = torch.rand(self.num_heads, self.embedding_size, requires_grad = True, device=device)
         
     def forward(self, w):
         w = w.squeeze()
-        # w = torch.t(self.embeddings(word_ids).squeeze()) # Embedding_Dim 
+       
         r = torch.matmul(self.attention, w)
         a = torch.softmax(r, 1)
         reweighted = a @ w.T
@@ -208,7 +193,7 @@ def run_eval(model, eval_data, kwargs):
 
 # +
 
-loss_period = 500
+loss_period = 5
 # model = model.to(device)
 writer = SummaryWriter()
 loss_function = nn.CrossEntropyLoss()
@@ -255,11 +240,11 @@ for epoch in tqdm(range(n_epochs)):
 
         if not step % loss_period and step:
             writer.add_scalar("Loss", loss_sum, loss_idx)
-            # if not step % (loss_period * 10) and step:
-            #     model.eval()
-            #     _y, _y2, f1 = run_eval(model, dev_list, kwargs)
-            #     writer.add_scalar("F1", f1, loss_idx)
-            #     model.train()
+            if not step % (loss_period * 10) and step:
+                model.eval()
+                _y, _y2, f1 = run_eval(model, val_list, kwargs)
+                writer.add_scalar("F1", f1, loss_idx)
+                model.train()
             loss_record.append(loss_sum)
             loss_sum = 0
             loss_idx += 1

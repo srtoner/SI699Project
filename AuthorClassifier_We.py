@@ -76,13 +76,9 @@ import gensim
 
 import gensim.downloader as api
 gensim_model = api.load("glove-wiki-gigaword-300") 
-
-
 # -
 
 embedding_weights = gensim_model.vectors
-
-
 # +
 
 
@@ -221,7 +217,6 @@ class DocumentAttentionClassifier(nn.Module):
         self.embeddings_fname = vocab_size        
         
         self.embeddings = nn.Embedding.from_pretrained(trained_weights, freeze = False)
-        # self.embedding = nn.Embedding(vocab_size, embedding_size)
         self.lstm = nn.LSTM(sequence_length, hidden_dim, batch_first=True, bidirectional=True)
         self.attention = nn.Linear(hidden_dim * 2, 1)
         self.fc = nn.Linear(hidden_dim * 2, n_classes)
@@ -300,7 +295,7 @@ optimizer = optim.AdamW(model.parameters(), lr = 5e-3, weight_decay = 0.01)
 # optimizer = optim.SGD(model.parameters(), lr = 5e-4)
 
 train_loader = DataLoader(train_list, batch_size=256, shuffle=True, collate_fn=collate_func, **kwargs)
-n_epochs = 5
+n_epochs = 15
 
 # # + vscode={"languageId": "python"}
 loss_idx = 0
