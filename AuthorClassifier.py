@@ -76,7 +76,7 @@ data_df.head()
 
 embed_df = embed_df.merge(data_df, how= 'left', left_on= 'passage_key', right_on = 'passage_key')
 embed_df = embed_df.dropna(subset=['author_id', 'sent_embedding'])
-
+embed_df = embed_df.dropna(subset = ['author_id', 'sent_embeddings'])
 
 n_classes = embed_df.author_id.nunique()
 
@@ -243,7 +243,7 @@ optimizer = optim.AdamW(model.parameters(), lr = 5e-2, weight_decay = 0.01)
 # optimizer = optim.RMSprop(model.parameters(), 5e-3)
 # optimizer = optim.SGD(model.parameters(), lr = 5e-4)
 
-train_loader = DataLoader(train_list, batch_size=16, shuffle=True, collate_fn=collate_func, **kwargs)
+train_loader = DataLoader(train_list, batch_size=166, shuffle=True, collate_fn=collate_func, **kwargs)
 n_epochs = 10
 # n_epochs = 1
 
