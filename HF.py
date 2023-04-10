@@ -102,7 +102,6 @@ embed_df = pd.DataFrame(embed)
 
 data = U.load_file('data_vFFFF.pkl', 'pkl', config['DATADIR'])
 
-# -
 
 embed_df[2][0].shape
 

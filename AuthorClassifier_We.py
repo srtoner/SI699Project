@@ -58,7 +58,7 @@ from torch.utils.data.dataloader import default_collate
 
 torch.set_default_dtype(torch.float64)
 
-suffix = "small"
+suffix = "med"
 # +
 with open('embedding_data_final.pkl', 'rb') as f:
     embed = pkl.load(f)
@@ -194,7 +194,7 @@ X_train, X_val, y_train, y_val = U.train_test_split(X_train, y_train, test_size=
 # -
 device = 'cpu'
 # device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
-# device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 kwargs = {'num_workers': 1, 'pin_memory': True} if (device == "cuda:0" or device == 'mps') else {}
 collate_func = lambda x: tuple(x_.to(device) for x_ in default_collate(x)) if device != "cpu" else default_collate(x)
 
