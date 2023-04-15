@@ -13,4 +13,4 @@ To recreate the dataset used in this analysis:
 
 4. Run Cleaning.ipynb to join with the metadata
 
-5. 
+5. Run Prune.ipynb to cut down data to the appropriate size
